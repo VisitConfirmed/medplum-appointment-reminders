@@ -1,0 +1,28 @@
+{
+  "name": "medplum-appointment-reminders",
+  "version": "1.0.0",
+  "description": "FHIR-native appointment confirmation bot for Medplum. AI voice + SMS to reduce no-shows.",
+  "main": "dist/appointment-confirmation-bot.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "medplum",
+    "fhir",
+    "appointment",
+    "reminders",
+    "confirmation",
+    "no-show",
+    "healthcare",
+    "bot"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@medplum/core": "^3.0.0",
+    "@medplum/fhirtypes": "^3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

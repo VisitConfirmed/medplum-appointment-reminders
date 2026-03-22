@@ -1,0 +1,11 @@
+{
+  "resourceType": "Subscription",
+  "status": "active",
+  "reason": "Trigger VisitConfirmed appointment confirmation when Appointments are created or updated",
+  "criteria": "Appointment?status=pending,proposed",
+  "channel": {
+    "type": "rest-hook",
+    "endpoint": "Bot/<YOUR_BOT_ID>",
+    "payload": "application/fhir+json"
+  }
+}
