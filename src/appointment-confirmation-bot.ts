@@ -15,7 +15,7 @@
  */
 
 import { BotEvent, MedplumClient } from '@medplum/core';
-import { Appointment, Patient, Practitioner } from '@medplum/fhirtypes';
+import { Appointment, Location, Patient, Practitioner } from '@medplum/fhirtypes';
 
 const VISITCONFIRMED_API_URL =
   'https://api.visitconfirmed.com/api/medplum/engagements/';
@@ -98,21 +98,45 @@ export async function handler(
     }
   }
 
+  // --- Resolve Location (optional) ---
+
+  const locationRef = appointment.participant?.find((p) =>
+    p.actor?.reference?.startsWith('Location/')
+  )?.actor?.reference;
+
+  let locationName = '';
+  if (locationRef) {
+    try {
+      const location = (await medplum.readReference({
+        reference: locationRef,
+      })) as Location;
+      locationName = location.name ?? '';
+    } catch {
+      console.log(`Could not resolve location: ${locationRef}`);
+    }
+  }
+
   // --- Build payload ---
 
   const patientName = patient.name?.[0];
   const email = patient.telecom?.find((t) => t.system === 'email')?.value;
 
-  const payload = {
-    fhir_appointment_id: appointment.id,
-    appointment_start: appointment.start,
-    appointment_end: appointment.end,
-    appointment_type: appointment.appointmentType?.coding?.[0]?.display ?? appointment.appointmentType?.text ?? 'general',
+  const payload: Record<string, string> = {
+    fhir_appointment_id: appointment.id ?? '',
+    fhir_patient_id: patient.id ?? '',
+    appointment_start: appointment.start ?? '',
+    appointment_end: appointment.end ?? '',
+    appointment_type:
+      appointment.appointmentType?.coding?.[0]?.display ??
+      appointment.appointmentType?.text ??
+      'general',
     patient_first_name: patientName?.given?.join(' ') ?? '',
     patient_last_name: patientName?.family ?? '',
     patient_phone: phone,
     patient_email: email ?? '',
     practitioner_name: practitionerName,
+    location: locationName,
+    special_instructions: appointment.patientInstruction ?? appointment.comment ?? '',
   };
 
   // --- Call VisitConfirmed API ---

@@ -19,8 +19,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@medplum/core": "^3.0.0",
-    "@medplum/fhirtypes": "^3.0.0"
+    "@medplum/core": "^5.0.0",
+    "@medplum/fhirtypes": "^5.0.0"
   },
   "devDependencies": {
     "typescript": "^5.0.0"

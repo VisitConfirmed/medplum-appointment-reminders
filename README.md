@@ -11,7 +11,7 @@ Medplum                          VisitConfirmed
 │      ▼       │   webhook       │  Retry Logic              │
 │ Subscription ├────────────────►│  Escalation               │
 │   + Bot      │                 │  Quiet Hours              │
-│              │  ◄──────────────┤  FHIR Write-back (soon)   │
+│              │  ◄──────────────┤  FHIR Write-back          │
 │  Appointment │   status update │                          │
 │   updated    │                 └──────────────────────────┘
 └──────────────┘
@@ -57,9 +57,10 @@ That's it. New Appointments with status `pending` or `proposed` will automatical
 3. **VisitConfirmed** runs the engagement:
    - AI voice call to confirm, cancel, or reschedule
    - SMS follow-up if the call goes unanswered
+   - Calendar invite (.ics) sent to the patient's phone
    - Automatic retries with configurable quiet hours
    - Escalation to your staff when a patient is unresponsive
-4. **Results written back** to Medplum as FHIR resources (Communication, Task, Appointment status updates) — coming soon.
+4. **Results written back** to Medplum as FHIR resources — Appointment status updates (confirmed → `booked`, cancelled → `cancelled`), Communication logs, and Task resources for staff escalations.
 
 ## What the Bot sends
 
@@ -68,6 +69,7 @@ The Bot extracts these fields from FHIR resources and sends them to the VisitCon
 | Field | FHIR Source | Required |
 |-------|-------------|----------|
 | `fhir_appointment_id` | `Appointment.id` | Yes |
+| `fhir_patient_id` | `Patient.id` | No |
 | `appointment_start` | `Appointment.start` | Yes |
 | `appointment_end` | `Appointment.end` | No |
 | `appointment_type` | `Appointment.appointmentType` | No |
@@ -76,6 +78,8 @@ The Bot extracts these fields from FHIR resources and sends them to the VisitCon
 | `patient_last_name` | `Patient.name[0].family` | No |
 | `patient_email` | `Patient.telecom` (system=email) | No |
 | `practitioner_name` | `Practitioner.name[0]` | No |
+| `location` | `Location.name` (from participant) | No |
+| `special_instructions` | `Appointment.patientInstruction` or `.comment` | No |
 
 ## Guard clauses
 
