@@ -3,18 +3,19 @@
 FHIR-native appointment confirmation for Medplum. AI voice calls + SMS reminders to reduce no-shows — without building your own engagement system.
 
 ```
-Medplum                          VisitConfirmed
-┌──────────────┐                 ┌──────────────────────────┐
-│  Appointment │                 │                          │
-│   created    │                 │  AI Voice Call            │
-│      │       │                 │  SMS Reminders            │
-│      ▼       │   webhook       │  Retry Logic              │
-│ Subscription ├────────────────►│  Escalation               │
-│   + Bot      │                 │  Quiet Hours              │
-│              │  ◄──────────────┤  FHIR Write-back          │
-│  Appointment │   status update │                          │
-│   updated    │                 └──────────────────────────┘
-└──────────────┘
+Medplum                             VisitConfirmed
+┌────────────────┐                  ┌──────────────────────┐
+│                │                  │                      │
+│  Appointment   │                  │  AI Voice Call       │
+│    created     │                  │  SMS Reminders       │
+│       │        │                  │  Calendar Invites    │
+│       ▼        │     webhook      │  Retry Logic         │
+│  Subscription  ├─────────────────►│  Escalation          │
+│    + Bot       │                  │  Quiet Hours         │
+│                │  ◄───────────────┤  FHIR Write-back     │
+│  Appointment   │   status update  │                      │
+│    updated     │                  └──────────────────────┘
+└────────────────┘
 ```
 
 When a new Appointment is created in Medplum, this Bot fires automatically. It fetches the Patient's contact details and calls the VisitConfirmed API. VisitConfirmed then handles the hard part: AI voice calls, SMS follow-ups, retry logic, quiet hours, consent management, and escalation to staff when needed.
