@@ -36,7 +36,7 @@
   },
   "homepage": "https://visitconfirmed.com",
   "engines": {
-    "node": ">=18"
+    "node": "^22.18.0 || >=24.2.0"
   },
   "dependencies": {
     "@medplum/core": "^5.0.0",

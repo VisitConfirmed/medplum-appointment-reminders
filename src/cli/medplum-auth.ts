@@ -3,6 +3,7 @@
 // contributors, Apache-2.0.
 import { ClientStorage } from '@medplum/core';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -61,8 +62,20 @@ export class FileSystemStorage extends ClientStorage {
 
   private writeFile(data: Record<string, string>): void {
     if (!existsSync(this.dirName)) {
-      mkdirSync(this.dirName);
+      mkdirSync(this.dirName, { recursive: true, mode: 0o700 });
     }
-    writeFileSync(this.fileName, JSON.stringify(data, null, 2), 'utf8');
+    const fileExisted = existsSync(this.fileName);
+    writeFileSync(this.fileName, JSON.stringify(data, null, 2), {
+      encoding: 'utf8',
+      mode: 0o600,
+    });
+    // writeFileSync ignores `mode` on existing files — chmod to enforce.
+    if (fileExisted) {
+      try {
+        chmodSync(this.fileName, 0o600);
+      } catch {
+        // No-op on platforms without POSIX file modes (Windows).
+      }
+    }
   }
 }

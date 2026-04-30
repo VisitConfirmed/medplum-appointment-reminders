@@ -50,7 +50,7 @@ When it finishes, paste the printed `ClientApplication` ID + secret into the Vis
 |------|---------|
 | `src/cli/` | The `npx @visitconfirmed/medplum` connector — provisions the AccessPolicy, ClientApplication, and Subscription |
 | `src/bot/appointment-confirmation.ts` | Optional Medplum Bot for advanced setups that want to customize the FHIR-to-VisitConfirmed payload |
-| `fhir/subscription.json` | Reference Subscription template, for users who prefer to provision manually |
+| `fhir/subscription.json` | Reference Subscription template for the Bot-based advanced setup (`endpoint: "Bot/<YOUR_BOT_ID>"`) |
 
 ## How appointment confirmation works
 
