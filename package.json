@@ -1,28 +1,49 @@
 {
-  "name": "medplum-appointment-reminders",
-  "version": "1.0.0",
-  "description": "FHIR-native appointment confirmation bot for Medplum. AI voice + SMS to reduce no-shows.",
-  "main": "dist/appointment-confirmation-bot.js",
+  "name": "@visitconfirmed/medplum",
+  "version": "0.1.0",
+  "description": "One-command Medplum integration for VisitConfirmed appointment confirmations. AI voice + SMS to reduce no-shows.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "visitconfirmed-medplum": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "fhir",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "medplum",
     "fhir",
     "appointment",
-    "reminders",
     "confirmation",
+    "reminders",
     "no-show",
     "healthcare",
-    "bot"
+    "bot",
+    "visitconfirmed"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VisitConfirmed/medplum-appointment-reminders.git"
+  },
+  "homepage": "https://visitconfirmed.com",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@medplum/core": "^5.0.0",
     "@medplum/fhirtypes": "^5.0.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "typescript": "^5.0.0"
   }
 }
