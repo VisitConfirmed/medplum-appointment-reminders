@@ -10,7 +10,7 @@ Medplum (FHIR Server)                  VisitConfirmed
 │         │            │               │  Two-Way SMS              │
 │         ▼            │    webhook    │  Calendar Invites (.ics)  │
 │  FHIR Subscription   ├──────────────►│  Retry Logic              │
-│    triggers Bot      │               │  Quiet Hours & Consent    │
+│                      │               │  Quiet Hours & Consent    │
 │                      │  ◄────────────┤  Escalation to Staff      │
 │  Appointment.status  │  FHIR write-  │  Rescheduling Workflows   │
 │  Communication       │  back         │  No-Show Recovery         │
@@ -18,16 +18,9 @@ Medplum (FHIR Server)                  VisitConfirmed
 └──────────────────────┘               └───────────────────────────┘
 ```
 
-This open-source Medplum Bot triggers automatically when a new Appointment is created. It resolves the Patient, Practitioner, and Location from FHIR references, then calls the VisitConfirmed API. VisitConfirmed handles the rest: AI voice calls that have real conversations with patients, SMS follow-ups, calendar invites, retry logic, quiet hours, consent management, and escalation to your staff when needed. Results are written back to Medplum as FHIR resources.
+When a new Appointment is created in Medplum, a FHIR Subscription forwards it to VisitConfirmed. VisitConfirmed handles the rest: AI voice calls that have real conversations with patients, two-way SMS follow-ups, calendar invites, retry logic, quiet hours, consent management, and escalation to your staff when needed. Results are written back to Medplum as FHIR resources.
 
-**Setup time: ~5 minutes.** No infrastructure to manage.
-
-## What's in this repo
-
-| File | Purpose |
-|------|---------|
-| `src/appointment-confirmation-bot.ts` | Medplum Bot — triggers on new Appointments, resolves FHIR references, calls VisitConfirmed |
-| `fhir/subscription.json` | FHIR Subscription config (fires on `Appointment?status=pending,proposed`) |
+**Setup time: ~5 minutes — one command.** No infrastructure to manage.
 
 ## Quick start
 
@@ -35,26 +28,34 @@ This open-source Medplum Bot triggers automatically when a new Appointment is cr
 
 [Get Started Free](https://visitconfirmed.com) — no credit card required. API keys are currently issued manually, so expect a short wait after signing up.
 
-### 2. Create the Bot in Medplum
+### 2. Run the connector
 
-1. In your Medplum project, go to **Bots** and create a new Bot.
-2. Copy the code from `src/appointment-confirmation-bot.ts` into the Bot editor, or deploy from source using the [Medplum Bot deployment docs](https://www.medplum.com/docs/bots).
-3. Add your API key as a Bot Secret:
-   - **Key:** `VISITCONFIRMED_API_KEY`
-   - **Value:** your API key from step 1
+From any machine that has the [Medplum CLI](https://www.medplum.com/docs/cli) logged in to your project (`npx medplum login`):
 
-### 3. Create the FHIR Subscription
+```sh
+npx @visitconfirmed/medplum
+```
 
-1. Go to your Medplum project's **Subscriptions**.
-2. Create a new Subscription using `fhir/subscription.json` as a template.
-3. Replace `<YOUR_BOT_ID>` in the endpoint with your Bot's ID.
+The CLI prompts for your VisitConfirmed API key and provisions the integration on your Medplum project:
 
-That's it. New Appointments with status `pending` or `proposed` will automatically trigger patient outreach, and results are written back to Medplum as FHIR resources.
+- An `AccessPolicy` scoped to the resources VisitConfirmed needs (Appointments, Patients, Practitioners, Locations, Communications, Tasks, Subscriptions)
+- A `ClientApplication` bound to that AccessPolicy, so VisitConfirmed can write back results
+- A `Subscription` on `Appointment?status=pending,proposed` that forwards new appointments to `https://visitconfirmed.com/api/medplum/fhir-appointment/`
+
+When it finishes, paste the printed `ClientApplication` ID + secret into the VisitConfirmed dashboard and you're live.
+
+## What's in this repo
+
+| File | Purpose |
+|------|---------|
+| `src/cli/` | The `npx @visitconfirmed/medplum` connector — provisions the AccessPolicy, ClientApplication, and Subscription |
+| `src/bot/appointment-confirmation.ts` | Optional Medplum Bot for advanced setups that want to customize the FHIR-to-VisitConfirmed payload |
+| `fhir/subscription.json` | Reference Subscription template for the Bot-based advanced setup (`endpoint: "Bot/<YOUR_BOT_ID>"`) |
 
 ## How appointment confirmation works
 
-1. **FHIR Subscription** watches for new or updated Appointments in Medplum.
-2. **This Bot** fires automatically, resolves the `Patient`, `Practitioner`, and `Location` from FHIR participant references, extracts contact details, and sends the engagement to VisitConfirmed.
+1. **FHIR Subscription** watches for new or updated Appointments in Medplum (`status=pending,proposed`).
+2. **VisitConfirmed receives the FHIR Appointment** via direct webhook and uses the `ClientApplication` credentials to read the linked `Patient`, `Practitioner`, and `Location`.
 3. **VisitConfirmed runs the multi-channel engagement:**
    - AI voice call — a real conversation that can confirm, cancel, or reschedule
    - Two-way SMS follow-up if the call goes unanswered
@@ -68,9 +69,15 @@ That's it. New Appointments with status `pending` or `proposed` will automatical
    - `Communication` resources logged for every patient interaction
    - `Task` resources created when staff follow-up is needed
 
-## FHIR resources the Bot reads
+## Advanced: customize with a Bot
 
-The Bot resolves these FHIR resources from the Appointment's participant references:
+Most teams use the direct-webhook flow above. If you want to run custom logic in Medplum before forwarding to VisitConfirmed (filter by location, enrich with custom extensions, route to different VisitConfirmed organizations, etc.), use the included Bot:
+
+1. In your Medplum project, create a new Bot and paste in `src/bot/appointment-confirmation.ts` (or deploy from source — see the [Medplum Bot deployment docs](https://www.medplum.com/docs/bots)).
+2. Add your VisitConfirmed API key as a Bot Secret named `VISITCONFIRMED_API_KEY`.
+3. Point a Subscription at the Bot instead of the direct webhook (`endpoint: "Bot/<YOUR_BOT_ID>"`).
+
+The Bot reads these FHIR fields from the Appointment's participant references and forwards them to VisitConfirmed:
 
 | Field | FHIR Source | Required |
 |-------|-------------|----------|
@@ -87,15 +94,7 @@ The Bot resolves these FHIR resources from the Appointment's participant referen
 | `location` | `Location.name` (resolved from participant reference) | No |
 | `special_instructions` | `Appointment.patientInstruction` or `Appointment.comment` | No |
 
-## Guard clauses
-
-The Bot skips Appointments that are:
-- Already in a terminal state: `booked`, `fulfilled`, `cancelled`, or `noshow`
-- Scheduled in the past (compares `Appointment.start` to current time)
-- Missing a Patient participant reference
-- Missing a phone number on the Patient resource
-
-These guards make the Bot safe to use with broad Subscription criteria — it will only engage patients for actionable future appointments.
+The Bot skips Appointments that are already in a terminal state (`booked`, `fulfilled`, `cancelled`, `noshow`), scheduled in the past, missing a Patient participant, or missing a phone number — making it safe to use with broad Subscription criteria.
 
 ## Why not build appointment reminders in-house?
 
@@ -131,4 +130,4 @@ Questions? Reach us at hello@visitconfirmed.com or open an issue in this repo.
 
 ## License
 
-MIT
+Apache-2.0
