@@ -33,7 +33,7 @@ This open-source Medplum Bot triggers automatically when a new Appointment is cr
 
 ### 1. Get a VisitConfirmed API key
 
-[Get Started Free](https://visitconfirmed.com) — no credit card required.
+[Get Started Free](https://visitconfirmed.com) — no credit card required. API keys are currently issued manually, so expect a short wait after signing up.
 
 ### 2. Create the Bot in Medplum
 
@@ -49,7 +49,7 @@ This open-source Medplum Bot triggers automatically when a new Appointment is cr
 2. Create a new Subscription using `fhir/subscription.json` as a template.
 3. Replace `<YOUR_BOT_ID>` in the endpoint with your Bot's ID.
 
-That's it. New Appointments with status `pending` or `proposed` will automatically trigger patient outreach.
+That's it. New Appointments with status `pending` or `proposed` will automatically trigger patient outreach, and results are written back to Medplum as FHIR resources.
 
 ## How appointment confirmation works
 
