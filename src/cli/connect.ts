@@ -28,9 +28,17 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-function toFhirBaseUrl(baseUrl: string): string {
-  const trimmed = baseUrl.replace(/\/+$/, '');
-  return trimmed.endsWith('/fhir/R4') ? trimmed : `${trimmed}/fhir/R4`;
+// Accept either the host base ("https://api.medplum.com") — what
+// MedplumClient wants — or the FHIR base ("https://api.medplum.com/fhir/R4")
+// — what VisitConfirmed's write-back code wants — and normalize between
+// them. MedplumClient appends "/fhir/R4" itself, so we strip it for that
+// caller and re-add it for the VC registration call.
+function toHostBaseUrl(input: string): string {
+  return input.replace(/\/+$/, '').replace(/\/fhir\/R4$/, '');
+}
+
+function toFhirBaseUrl(input: string): string {
+  return `${toHostBaseUrl(input)}/fhir/R4`;
 }
 
 async function getProjectId(medplum: MedplumClient): Promise<string> {
@@ -167,7 +175,10 @@ export async function connect(): Promise<void> {
     );
   }
 
-  const medplum = new MedplumClient({ baseUrl, storage });
+  const medplum = new MedplumClient({
+    baseUrl: toHostBaseUrl(baseUrl),
+    storage,
+  });
   const fhirBaseUrl = toFhirBaseUrl(baseUrl);
 
   console.log('\nValidating Medplum session...');
