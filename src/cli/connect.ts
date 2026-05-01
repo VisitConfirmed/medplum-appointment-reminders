@@ -9,6 +9,7 @@ import type {
 import { FileSystemStorage } from './medplum-auth';
 import { prompt } from './prompts';
 import {
+  VISITCONFIRMED_REGISTER_URL,
   VISITCONFIRMED_WEBHOOK_URL,
   buildAccessPolicy,
   buildSubscription,
@@ -18,9 +19,26 @@ interface AuthMeResponse {
   project?: { resourceType: 'Project'; id?: string };
 }
 
+type RegistrationResult =
+  | { ok: true }
+  | { ok: false; status?: number; reason: string };
+
 function fail(message: string): never {
   console.error(`\n${message}`);
   process.exit(1);
+}
+
+// Accept either the host base ("https://api.medplum.com") — what
+// MedplumClient wants — or the FHIR base ("https://api.medplum.com/fhir/R4")
+// — what VisitConfirmed's write-back code wants — and normalize between
+// them. MedplumClient appends "/fhir/R4" itself, so we strip it for that
+// caller and re-add it for the VC registration call.
+function toHostBaseUrl(input: string): string {
+  return input.replace(/\/+$/, '').replace(/\/fhir\/R4$/, '');
+}
+
+function toFhirBaseUrl(input: string): string {
+  return `${toHostBaseUrl(input)}/fhir/R4`;
 }
 
 async function getProjectId(medplum: MedplumClient): Promise<string> {
@@ -71,6 +89,69 @@ async function createClientApplication(
   }
 }
 
+async function registerClientApplication(
+  visitConfirmedApiKey: string,
+  fhirBaseUrl: string,
+  clientId: string,
+  clientSecret: string
+): Promise<RegistrationResult> {
+  try {
+    const response = await fetch(VISITCONFIRMED_REGISTER_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Medplum-Api-Key': visitConfirmedApiKey,
+      },
+      body: JSON.stringify({
+        medplum_base_url: fhirBaseUrl,
+        medplum_client_id: clientId,
+        medplum_client_secret: clientSecret,
+      }),
+    });
+    if (response.ok) {
+      return { ok: true };
+    }
+    const detail = await response.text().catch(() => '');
+    const reason =
+      response.status === 403
+        ? 'Invalid VisitConfirmed API key.'
+        : `HTTP ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`;
+    return { ok: false, status: response.status, reason };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `Network error: ${(err as Error).message ?? err}`,
+    };
+  }
+}
+
+function printManualFallback(
+  client: { id: string; secret: string },
+  fhirBaseUrl: string,
+  reason: string
+): void {
+  console.log('\n----------------------------------------------------------------');
+  console.log('Could not auto-register with VisitConfirmed.');
+  console.log(`Reason: ${reason}`);
+  console.log('----------------------------------------------------------------');
+  console.log(
+    '\nYour Medplum AccessPolicy and ClientApplication were created, but the'
+  );
+  console.log(
+    'Subscription was NOT created — VisitConfirmed cannot enrich appointments'
+  );
+  console.log('without the credentials below.\n');
+  console.log('To finish setup manually, share these with VisitConfirmed support:');
+  console.log(`  Client ID:     ${client.id}`);
+  console.log(`  Client Secret: ${client.secret}`);
+  console.log(`  Base URL:      ${fhirBaseUrl}`);
+  console.log(
+    '\nThen contact support@visitconfirmed.com so the Subscription can be ' +
+      'created on your behalf, or re-run this command after fixing the issue ' +
+      'above.\n'
+  );
+}
+
 export async function connect(): Promise<void> {
   const pkg = require('../../package.json') as { name: string; version: string };
   console.log(`\n${pkg.name} v${pkg.version}`);
@@ -94,7 +175,11 @@ export async function connect(): Promise<void> {
     );
   }
 
-  const medplum = new MedplumClient({ baseUrl, storage });
+  const medplum = new MedplumClient({
+    baseUrl: toHostBaseUrl(baseUrl),
+    storage,
+  });
+  const fhirBaseUrl = toFhirBaseUrl(baseUrl);
 
   console.log('\nValidating Medplum session...');
   const projectId = await getProjectId(medplum);
@@ -103,7 +188,9 @@ export async function connect(): Promise<void> {
   console.log('\nCreating AccessPolicy...');
   let accessPolicy: AccessPolicy & { id: string };
   try {
-    accessPolicy = await medplum.createResource<AccessPolicy>(buildAccessPolicy()) as AccessPolicy & { id: string };
+    accessPolicy = await medplum.createResource<AccessPolicy>(
+      buildAccessPolicy()
+    ) as AccessPolicy & { id: string };
   } catch (err) {
     const status = (err as { status?: number })?.status;
     if (status === 403) {
@@ -116,6 +203,19 @@ export async function connect(): Promise<void> {
   console.log('\nCreating ClientApplication...');
   const client = await createClientApplication(medplum, projectId, accessPolicy);
   console.log(`  ClientApplication/${client.id}`);
+
+  console.log('\nRegistering with VisitConfirmed...');
+  const registration = await registerClientApplication(
+    visitConfirmedApiKey,
+    fhirBaseUrl,
+    client.id,
+    client.secret
+  );
+  if (!registration.ok) {
+    printManualFallback(client, fhirBaseUrl, registration.reason);
+    process.exit(1);
+  }
+  console.log('  Registered successfully.');
 
   console.log('\nCreating Subscription...');
   let subscription: Subscription & { id: string };
@@ -133,15 +233,17 @@ export async function connect(): Promise<void> {
   console.log(`  Subscription/${subscription.id} -> ${VISITCONFIRMED_WEBHOOK_URL}`);
 
   console.log('\n----------------------------------------------------------------');
-  console.log('Done! Created on your Medplum project:');
+  console.log("Done! You're live.");
+  console.log('----------------------------------------------------------------');
+  console.log('Created on your Medplum project:');
   console.log(`  AccessPolicy/${accessPolicy.id}`);
   console.log(`  ClientApplication/${client.id}`);
   console.log(`  Subscription/${subscription.id}`);
-  console.log('----------------------------------------------------------------');
-  console.log('\nClientApplication credentials (paste into VisitConfirmed dashboard):');
-  console.log(`  Client ID:     ${client.id}`);
-  console.log(`  Client Secret: ${client.secret}`);
-  console.log(`  Base URL:      ${baseUrl}`);
-  console.log('\nNext: configure these credentials at https://visitconfirmed.com');
-  console.log('so VisitConfirmed can write back to your Medplum project.\n');
+  console.log(
+    '\nNew Appointments with status pending or proposed will now flow to'
+  );
+  console.log(
+    'VisitConfirmed automatically. Results are written back to your Medplum'
+  );
+  console.log('project as FHIR resources.\n');
 }
