@@ -3,6 +3,9 @@ import type { AccessPolicy, Subscription } from '@medplum/fhirtypes';
 export const VISITCONFIRMED_WEBHOOK_URL =
   'https://visitconfirmed.com/api/medplum/fhir-appointment/';
 
+export const VISITCONFIRMED_REGISTER_URL =
+  'https://visitconfirmed.com/api/medplum/register-client-application/';
+
 export function buildAccessPolicy(): AccessPolicy {
   return {
     resourceType: 'AccessPolicy',
