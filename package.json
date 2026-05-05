@@ -1,6 +1,6 @@
 {
   "name": "@visitconfirmed/medplum",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Medplum FHIR appointment reminders and confirmations — AI voice + two-way SMS to reduce no-shows, with bidirectional FHIR write-back.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
