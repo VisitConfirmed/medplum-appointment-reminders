@@ -1,7 +1,7 @@
 {
   "name": "@visitconfirmed/medplum",
-  "version": "0.1.0",
-  "description": "One-command Medplum integration for VisitConfirmed appointment confirmations. AI voice + SMS to reduce no-shows.",
+  "version": "0.1.1",
+  "description": "Medplum FHIR appointment reminders and confirmations — AI voice + two-way SMS to reduce no-shows, with bidirectional FHIR write-back.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -20,12 +20,22 @@
   },
   "keywords": [
     "medplum",
+    "medplum-bot",
     "fhir",
     "appointment",
+    "appointment-reminders",
+    "appointment-confirmations",
     "confirmation",
     "reminders",
     "no-show",
+    "no-show-reduction",
+    "patient-engagement",
+    "sms-reminders",
+    "voice-ai",
     "healthcare",
+    "healthtech",
+    "telehealth",
+    "ehr",
     "bot",
     "visitconfirmed"
   ],

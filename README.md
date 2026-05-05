@@ -22,6 +22,8 @@ When a new Appointment is created in Medplum, a FHIR Subscription forwards it to
 
 **Setup time: ~5 minutes — one command.** No infrastructure to manage.
 
+Read the full walkthrough: [Two-way appointment confirmations on Medplum, in five minutes](https://visitconfirmed.com/blog/medplum-appointment-confirmations/).
+
 ## Quick start
 
 ### 1. Get a VisitConfirmed API key
@@ -126,6 +128,8 @@ VisitConfirmed is healthcare-native — not a generic messaging platform bolted 
 ## Get started
 
 [Get Started Free](https://visitconfirmed.com) — no credit card, no sales call required.
+
+For the full setup walkthrough with example FHIR resources and a real conversation flow, read [Two-way appointment confirmations on Medplum, in five minutes](https://visitconfirmed.com/blog/medplum-appointment-confirmations/).
 
 Questions? Reach us at hello@visitconfirmed.com or open an issue in this repo.
 
