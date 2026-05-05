@@ -27,7 +27,7 @@ interface AuthMeResponse {
 interface ProjectInfo {
   id: string;
   name: string;
-  profile: string;
+  displayName: string;
 }
 
 type RegistrationResult =
@@ -87,7 +87,7 @@ async function getProjectInfo(medplum: MedplumClient): Promise<ProjectInfo> {
   return {
     id: projectId,
     name: me?.project?.name ?? '(unnamed)',
-    profile: formatProfileName(me?.profile),
+    displayName: formatProfileName(me?.profile),
   };
 }
 
@@ -213,7 +213,7 @@ export async function connect(): Promise<void> {
   console.log('\nValidating Medplum session...');
   const projectInfo = await getProjectInfo(medplum);
 
-  console.log(`\nLogged in as:  ${projectInfo.profile}`);
+  console.log(`\nLogged in as:  ${projectInfo.displayName}`);
   console.log(`Project:       ${projectInfo.name} (${projectInfo.id})`);
   console.log(`Base URL:      ${fhirBaseUrl}`);
   console.log('\nAbout to create on this project:');
@@ -223,7 +223,8 @@ export async function connect(): Promise<void> {
 
   const proceed = await prompt('\nContinue? (y/N)', { defaultValue: 'N' });
   if (!/^y(es)?$/i.test(proceed.trim())) {
-    fail('Aborted. No resources were created.');
+    console.log('\nAborted. No resources were created.');
+    return;
   }
 
   console.log('\nCreating AccessPolicy...');
