@@ -16,7 +16,18 @@ import {
 } from './resources';
 
 interface AuthMeResponse {
-  project?: { resourceType: 'Project'; id?: string };
+  project?: { resourceType: 'Project'; id?: string; name?: string };
+  profile?: {
+    resourceType?: string;
+    id?: string;
+    name?: Array<{ given?: string[]; family?: string; prefix?: string[] }>;
+  };
+}
+
+interface ProjectInfo {
+  id: string;
+  name: string;
+  displayName: string;
 }
 
 type RegistrationResult =
@@ -26,6 +37,20 @@ type RegistrationResult =
 function fail(message: string): never {
   console.error(`\n${message}`);
   process.exit(1);
+}
+
+function formatProfileName(profile: AuthMeResponse['profile']): string {
+  const name = profile?.name?.[0];
+  if (name) {
+    const given = name.given?.join(' ') ?? '';
+    const family = name.family ?? '';
+    const formatted = [given, family].filter(Boolean).join(' ').trim();
+    if (formatted) return formatted;
+  }
+  if (profile?.resourceType && profile?.id) {
+    return `${profile.resourceType}/${profile.id}`;
+  }
+  return '(unknown)';
 }
 
 // Accept either the host base ("https://api.medplum.com") — what
@@ -41,7 +66,7 @@ function toFhirBaseUrl(input: string): string {
   return `${toHostBaseUrl(input)}/fhir/R4`;
 }
 
-async function getProjectId(medplum: MedplumClient): Promise<string> {
+async function getProjectInfo(medplum: MedplumClient): Promise<ProjectInfo> {
   let me: AuthMeResponse;
   try {
     me = await medplum.get<AuthMeResponse>('auth/me');
@@ -59,7 +84,11 @@ async function getProjectId(medplum: MedplumClient): Promise<string> {
         'Make sure your CLI login is bound to a project.'
     );
   }
-  return projectId;
+  return {
+    id: projectId,
+    name: me?.project?.name ?? '(unnamed)',
+    displayName: formatProfileName(me?.profile),
+  };
 }
 
 async function createClientApplication(
@@ -182,8 +211,21 @@ export async function connect(): Promise<void> {
   const fhirBaseUrl = toFhirBaseUrl(baseUrl);
 
   console.log('\nValidating Medplum session...');
-  const projectId = await getProjectId(medplum);
-  console.log(`  Project: ${projectId}`);
+  const projectInfo = await getProjectInfo(medplum);
+
+  console.log(`\nLogged in as:  ${projectInfo.displayName}`);
+  console.log(`Project:       ${projectInfo.name} (${projectInfo.id})`);
+  console.log(`Base URL:      ${fhirBaseUrl}`);
+  console.log('\nAbout to create on this project:');
+  console.log('  - AccessPolicy "VisitConfirmed Integration"');
+  console.log('  - ClientApplication "VisitConfirmed"');
+  console.log('  - Subscription on Appointment?status=pending,proposed');
+
+  const proceed = await prompt('\nContinue? (y/N)', { defaultValue: 'N' });
+  if (!/^y(es)?$/i.test(proceed.trim())) {
+    console.log('\nAborted. No resources were created.');
+    return;
+  }
 
   console.log('\nCreating AccessPolicy...');
   let accessPolicy: AccessPolicy & { id: string };
@@ -201,7 +243,7 @@ export async function connect(): Promise<void> {
   console.log(`  AccessPolicy/${accessPolicy.id}`);
 
   console.log('\nCreating ClientApplication...');
-  const client = await createClientApplication(medplum, projectId, accessPolicy);
+  const client = await createClientApplication(medplum, projectInfo.id, accessPolicy);
   console.log(`  ClientApplication/${client.id}`);
 
   console.log('\nRegistering with VisitConfirmed...');
