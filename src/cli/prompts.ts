@@ -1,10 +1,9 @@
 import { createInterface } from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
+import { stdin, stdout, stderr } from 'node:process';
 
 export interface PromptOptions {
   defaultValue?: string;
   required?: boolean;
-  mask?: boolean;
 }
 
 export async function prompt(
@@ -12,29 +11,6 @@ export async function prompt(
   options: PromptOptions = {}
 ): Promise<string> {
   const rl = createInterface({ input: stdin, output: stdout });
-  let muted = false;
-
-  if (options.mask && stdout.isTTY) {
-    const rlInternal = rl as unknown as {
-      _writeToOutput?: (stringToWrite: string) => void;
-      output: NodeJS.WritableStream;
-    };
-    const originalWriteToOutput = rlInternal._writeToOutput?.bind(rlInternal);
-    if (originalWriteToOutput) {
-      rlInternal._writeToOutput = (stringToWrite: string) => {
-        if (!muted) {
-          originalWriteToOutput(stringToWrite);
-          return;
-        }
-        if (stringToWrite === '\r\n' || stringToWrite === '\n' || stringToWrite === '\r') {
-          rlInternal.output.write(stringToWrite);
-        } else {
-          rlInternal.output.write('*'.repeat(stringToWrite.length));
-        }
-      };
-    }
-  }
-
   try {
     const suffix = options.defaultValue
       ? ` [${options.defaultValue}]`
@@ -42,10 +18,7 @@ export async function prompt(
         ? ' (required)'
         : '';
     while (true) {
-      const pending = rl.question(`${question}${suffix}: `);
-      muted = options.mask === true;
-      const answer = (await pending).trim();
-      muted = false;
+      const answer = (await rl.question(`${question}${suffix}: `)).trim();
       if (answer) {
         return answer;
       }
@@ -59,4 +32,79 @@ export async function prompt(
   } finally {
     rl.close();
   }
+}
+
+const ETX = '';
+const BACKSPACE = '';
+
+// Reads a secret without echoing it. Uses stdin raw mode for char-by-char
+// input so backspace works, and routes the prompt to stderr (when it's a
+// TTY) so the prompt stays visible — and the secret stays masked — even
+// when stdout is redirected to a file. Falls back to a plain readline
+// read when stdin isn't a TTY (CI / piped input).
+export async function promptSecret(question: string): Promise<string> {
+  const tty: NodeJS.WriteStream = stderr.isTTY ? stderr : stdout;
+  const promptText = `${question} (required): `;
+
+  if (!stdin.isTTY) {
+    const rl = createInterface({ input: stdin, output: tty });
+    try {
+      while (true) {
+        const answer = (await rl.question(promptText)).trim();
+        if (answer) return answer;
+      }
+    } finally {
+      rl.close();
+    }
+  }
+
+  return new Promise<string>((resolve) => {
+    const ask = (): void => {
+      tty.write(promptText);
+      stdin.setRawMode(true);
+      stdin.resume();
+      stdin.setEncoding('utf8');
+
+      let secret = '';
+      const finish = (): void => {
+        stdin.removeListener('data', onData);
+        stdin.setRawMode(false);
+        stdin.pause();
+      };
+      const onData = (data: string): void => {
+        for (const char of data) {
+          if (char === '\r' || char === '\n') {
+            finish();
+            tty.write('\n');
+            const trimmed = secret.trim();
+            if (trimmed) {
+              resolve(trimmed);
+            } else {
+              ask();
+            }
+            return;
+          }
+          if (char === ETX) {
+            finish();
+            tty.write('\n');
+            process.exit(130);
+          }
+          if (char === BACKSPACE || char === '\b') {
+            if (secret.length > 0) {
+              secret = secret.slice(0, -1);
+              tty.write('\b \b');
+            }
+            continue;
+          }
+          if (char.charCodeAt(0) < 32) {
+            continue;
+          }
+          secret += char;
+          tty.write('*');
+        }
+      };
+      stdin.on('data', onData);
+    };
+    ask();
+  });
 }
