@@ -17,7 +17,6 @@ export function buildAccessPolicy(): AccessPolicy {
       { resourceType: 'Location', readonly: true },
       { resourceType: 'Communication' },
       { resourceType: 'Task' },
-      { resourceType: 'Subscription' },
     ],
   };
 }
