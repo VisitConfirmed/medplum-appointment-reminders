@@ -7,7 +7,7 @@ import type {
 } from '@medplum/fhirtypes';
 
 import { FileSystemStorage } from './medplum-auth';
-import { prompt } from './prompts';
+import { prompt, promptSecret } from './prompts';
 import {
   VISITCONFIRMED_REGISTER_URL,
   VISITCONFIRMED_WEBHOOK_URL,
@@ -186,9 +186,7 @@ export async function connect(): Promise<void> {
   console.log(`\n${pkg.name} v${pkg.version}`);
   console.log('Provision the VisitConfirmed integration on your Medplum project.\n');
 
-  const visitConfirmedApiKey = await prompt('VisitConfirmed API key', {
-    required: true,
-  });
+  const visitConfirmedApiKey = await promptSecret('VisitConfirmed API key');
   const baseUrl = await prompt('Medplum base URL', {
     defaultValue: 'https://api.medplum.com',
   });
