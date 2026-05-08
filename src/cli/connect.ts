@@ -188,6 +188,7 @@ export async function connect(): Promise<void> {
 
   const visitConfirmedApiKey = await prompt('VisitConfirmed API key', {
     required: true,
+    mask: true,
   });
   const baseUrl = await prompt('Medplum base URL', {
     defaultValue: 'https://api.medplum.com',
