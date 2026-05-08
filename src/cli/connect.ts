@@ -194,21 +194,23 @@ function printManualFallback(
   console.log(`  Base URL:         ${fhirBaseUrl}`);
   console.log(`  Subscription ID:  ${subscription.id}`);
   console.log(
-    '\nEmail support@visitconfirmed.com or open an issue at'
+    '\nEmail the values above to support@visitconfirmed.com so they can be'
   );
   console.log(
-    'https://github.com/VisitConfirmed/medplum-appointment-reminders/issues'
+    'linked to your account. Do NOT share the Client Secret in any public'
   );
   console.log(
-    'so the credentials can be linked to your account. Or re-run this'
+    'channel — GitHub issues, Slack, screenshots, etc. — only over email.\n'
   );
   console.log(
-    'command after fixing the issue above — note that re-running creates'
+    'Or re-run this command after fixing the issue above. Note that'
   );
   console.log(
-    'duplicate AccessPolicy / ClientApplication / Subscription resources,'
+    're-running creates duplicate AccessPolicy / ClientApplication /'
   );
-  console.log('so delete the existing ones first.\n');
+  console.log(
+    'Subscription resources, so delete the existing ones first.\n'
+  );
 }
 
 export async function connect(): Promise<void> {
