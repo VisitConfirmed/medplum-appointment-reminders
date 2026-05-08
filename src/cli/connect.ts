@@ -34,8 +34,20 @@ type RegistrationResult =
   | { ok: true }
   | { ok: false; status?: number; reason: string };
 
+export function printSupportFooter(): void {
+  console.error('');
+  console.error(
+    'If this keeps happening, email support@visitconfirmed.com or open an issue at'
+  );
+  console.error(
+    'https://github.com/VisitConfirmed/medplum-appointment-reminders/issues'
+  );
+  console.error('with the error above and your CLI version.');
+}
+
 function fail(message: string): never {
   console.error(`\n${message}`);
+  printSupportFooter();
   process.exit(1);
 }
 
@@ -122,7 +134,8 @@ async function registerClientApplication(
   visitConfirmedApiKey: string,
   fhirBaseUrl: string,
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  subscriptionId: string
 ): Promise<RegistrationResult> {
   try {
     const response = await fetch(VISITCONFIRMED_REGISTER_URL, {
@@ -135,6 +148,7 @@ async function registerClientApplication(
         medplum_base_url: fhirBaseUrl,
         medplum_client_id: clientId,
         medplum_client_secret: clientSecret,
+        medplum_subscription_id: subscriptionId,
       }),
     });
     if (response.ok) {
@@ -156,6 +170,7 @@ async function registerClientApplication(
 
 function printManualFallback(
   client: { id: string; secret: string },
+  subscription: { id: string },
   fhirBaseUrl: string,
   reason: string
 ): void {
@@ -164,21 +179,36 @@ function printManualFallback(
   console.log(`Reason: ${reason}`);
   console.log('----------------------------------------------------------------');
   console.log(
-    '\nYour Medplum AccessPolicy and ClientApplication were created, but the'
+    '\nYour Medplum AccessPolicy, ClientApplication, and Subscription were'
   );
   console.log(
-    'Subscription was NOT created — VisitConfirmed cannot enrich appointments'
+    'created. The Subscription is firing webhooks at VisitConfirmed, but'
   );
-  console.log('without the credentials below.\n');
+  console.log(
+    'until the credentials below are linked to your account, those webhooks'
+  );
+  console.log('cannot be enriched and will fail.\n');
   console.log('To finish setup manually, share these with VisitConfirmed support:');
-  console.log(`  Client ID:     ${client.id}`);
-  console.log(`  Client Secret: ${client.secret}`);
-  console.log(`  Base URL:      ${fhirBaseUrl}`);
+  console.log(`  Client ID:        ${client.id}`);
+  console.log(`  Client Secret:    ${client.secret}`);
+  console.log(`  Base URL:         ${fhirBaseUrl}`);
+  console.log(`  Subscription ID:  ${subscription.id}`);
   console.log(
-    '\nThen contact support@visitconfirmed.com so the Subscription can be ' +
-      'created on your behalf, or re-run this command after fixing the issue ' +
-      'above.\n'
+    '\nEmail support@visitconfirmed.com or open an issue at'
   );
+  console.log(
+    'https://github.com/VisitConfirmed/medplum-appointment-reminders/issues'
+  );
+  console.log(
+    'so the credentials can be linked to your account. Or re-run this'
+  );
+  console.log(
+    'command after fixing the issue above — note that re-running creates'
+  );
+  console.log(
+    'duplicate AccessPolicy / ClientApplication / Subscription resources,'
+  );
+  console.log('so delete the existing ones first.\n');
 }
 
 export async function connect(): Promise<void> {
@@ -244,19 +274,11 @@ export async function connect(): Promise<void> {
   const client = await createClientApplication(medplum, projectInfo.id, accessPolicy);
   console.log(`  ClientApplication/${client.id}`);
 
-  console.log('\nRegistering with VisitConfirmed...');
-  const registration = await registerClientApplication(
-    visitConfirmedApiKey,
-    fhirBaseUrl,
-    client.id,
-    client.secret
-  );
-  if (!registration.ok) {
-    printManualFallback(client, fhirBaseUrl, registration.reason);
-    process.exit(1);
-  }
-  console.log('  Registered successfully.');
-
+  // Create the Subscription before registering credentials with VisitConfirmed.
+  // If registration then fails, the Subscription is firing webhooks at VC,
+  // and VC observes the orphan-credential state on its own — instead of the
+  // silent "VC has creds, no producer wired" state we'd get if registration
+  // succeeded but Subscription creation later failed.
   console.log('\nCreating Subscription...');
   let subscription: Subscription & { id: string };
   try {
@@ -271,6 +293,20 @@ export async function connect(): Promise<void> {
     throw err;
   }
   console.log(`  Subscription/${subscription.id} -> ${VISITCONFIRMED_WEBHOOK_URL}`);
+
+  console.log('\nRegistering with VisitConfirmed...');
+  const registration = await registerClientApplication(
+    visitConfirmedApiKey,
+    fhirBaseUrl,
+    client.id,
+    client.secret,
+    subscription.id
+  );
+  if (!registration.ok) {
+    printManualFallback(client, subscription, fhirBaseUrl, registration.reason);
+    process.exit(1);
+  }
+  console.log('  Registered successfully.');
 
   console.log('\n----------------------------------------------------------------');
   console.log("Done! You're live.");
