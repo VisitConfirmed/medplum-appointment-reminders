@@ -40,7 +40,7 @@ npx @visitconfirmed/medplum
 
 The CLI prompts for your VisitConfirmed API key, provisions the integration on your Medplum project, and registers the resulting credentials with VisitConfirmed automatically:
 
-- An `AccessPolicy` scoped to the resources VisitConfirmed needs (Appointments, Patients, Practitioners, Locations, Communications, Tasks, Subscriptions)
+- An `AccessPolicy` scoped to the resources VisitConfirmed needs (Appointments, Patients, Practitioners, Locations, Communications, Tasks)
 - A `ClientApplication` bound to that AccessPolicy, so VisitConfirmed can write back results
 - The `ClientApplication` credentials are sent to VisitConfirmed (authenticated via your API key) so write-back works automatically — no copy-paste required
 - A `Subscription` on `Appointment?status=pending,proposed` that forwards new appointments to `https://visitconfirmed.com/api/medplum/fhir-appointment/`
