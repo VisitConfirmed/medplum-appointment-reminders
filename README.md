@@ -99,22 +99,6 @@ The Bot reads these FHIR fields from the Appointment's participant references an
 
 The Bot skips Appointments that are already in a terminal state (`booked`, `fulfilled`, `cancelled`, `noshow`), scheduled in the past, missing a Patient participant, or missing a phone number — making it safe to use with broad Subscription criteria.
 
-## Rotating your VisitConfirmed API key
-
-Your VisitConfirmed API key authenticates the FHIR Subscription's webhook deliveries. The connector stores the value on the Subscription itself, in `channel.header`, so rotation is an in-place edit on that resource.
-
-When you receive a new API key from VisitConfirmed:
-
-1. In your Medplum project, open **Resources → Subscription** and click into the Subscription whose `channel.endpoint` ends in `/api/medplum/fhir-appointment/`.
-2. Open the **JSON** tab.
-3. Find `channel.header[0]`, which reads `"X-Medplum-Api-Key: <old-value>"`.
-4. Replace `<old-value>` with the new key. Leave the `"X-Medplum-Api-Key: "` prefix and the rest of the resource unchanged.
-5. Save.
-
-Medplum picks up the change atomically on the next webhook delivery. There is no overlap window and no period where the Subscription is offline.
-
-**Don't re-run `npx @visitconfirmed/medplum` to rotate.** The connector creates a new Subscription rather than updating the existing one, which leaves you with two active Subscriptions firing in parallel (every Appointment delivers twice) until you remember to delete the old one.
-
 ## Why not build appointment reminders in-house?
 
 The Bot is ~100 lines of TypeScript. The system behind it is not:
