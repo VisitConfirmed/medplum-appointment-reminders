@@ -134,8 +134,7 @@ async function registerClientApplication(
   visitConfirmedApiKey: string,
   fhirBaseUrl: string,
   clientId: string,
-  clientSecret: string,
-  subscriptionId: string
+  clientSecret: string
 ): Promise<RegistrationResult> {
   try {
     const response = await fetch(VISITCONFIRMED_REGISTER_URL, {
@@ -148,7 +147,6 @@ async function registerClientApplication(
         medplum_base_url: fhirBaseUrl,
         medplum_client_id: clientId,
         medplum_client_secret: clientSecret,
-        medplum_subscription_id: subscriptionId,
       }),
     });
     if (response.ok) {
@@ -301,8 +299,7 @@ export async function connect(): Promise<void> {
     visitConfirmedApiKey,
     fhirBaseUrl,
     client.id,
-    client.secret,
-    subscription.id
+    client.secret
   );
   if (!registration.ok) {
     printManualFallback(client, subscription, fhirBaseUrl, registration.reason);

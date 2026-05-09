@@ -43,7 +43,7 @@ The CLI prompts for your VisitConfirmed API key, provisions the integration on y
 - An `AccessPolicy` scoped to the resources VisitConfirmed needs (Appointments, Patients, Practitioners, Locations, Communications, Tasks)
 - A `ClientApplication` bound to that AccessPolicy, so VisitConfirmed can write back results
 - A `Subscription` on `Appointment?status=pending,proposed` that forwards new appointments to `https://visitconfirmed.com/api/medplum/fhir-appointment/`
-- The `ClientApplication` credentials and Subscription ID are sent to VisitConfirmed (authenticated via your API key) so write-back works automatically — no copy-paste required
+- The `ClientApplication` credentials are sent to VisitConfirmed (authenticated via your API key) so write-back works automatically — no copy-paste required
 
 When it finishes, you're live.
 
